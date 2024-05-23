@@ -1,29 +1,35 @@
-import android.content.Context
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
+// ContactDatabase.kt
 
-class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+import android.content.Context
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+
+@Database(entities = [Contact::class], version = 1)
+abstract class ContactDatabase : RoomDatabase() {
+
+    abstract fun contactDao(): ContactDao
 
     companion object {
-        private const val DATABASE_VERSION = 1
-        private const val DATABASE_NAME = "ContactsDB"
-        private const val TABLE_CONTACTS = "contacts"
+        @Volatile
+        private var INSTANCE: ContactDatabase? = null
 
-        private const val KEY_ID = "_id"
-        private const val KEY_NAME = "name"
-        private const val KEY_TELEPHONE = "telephone"
-        private const val KEY_GROUP = "contact_group"
-    }
-
-    override fun onCreate(db: SQLiteDatabase?) {
-        val createTableQuery = ("CREATE TABLE $TABLE_CONTACTS ($KEY_ID INTEGER PRIMARY KEY, "
-                + "$KEY_NAME TEXT, $KEY_TELEPHONE TEXT, $KEY_GROUP TEXT)")
-        db?.execSQL(createTableQuery)
-    }
-
-    override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
-        db?.execSQL("DROP TABLE IF EXISTS $TABLE_CONTACTS")
-        onCreate(db)
+        fun getDatabase(context: Context): ContactDatabase {
+            val tempInstance = INSTANCE
+            if (tempInstance != null) {
+                return tempInstance
+            }
+            synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    ContactDatabase::class.java,
+                    "contact_database"
+                ).build()
+                INSTANCE = instance
+                return instance
+            }
+        }
     }
 }
+
 
