@@ -1,85 +1,82 @@
 // MainActivity.kt
 
-fun addContact() {
-    val name = findViewById<EditText>(R.id.name).text.toString()
-    val telephone = findViewById<EditText>(R.id.telephone).text.toString()
-    val group = findViewById<EditText>(R.id.group).text.toString()
+import android.os.Bundle
+import android.widget.EditText
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
-    if (name.isNotEmpty() && telephone.isNotEmpty() && group.isNotEmpty()) {
-        contacts.add(Contact(name, telephone, group))
-        renderContacts(contacts)
-        clearForm()
-    } else {
-        Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var contactDao: ContactDao
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        val database = ContactDatabase.getDatabase(this)
+        contactDao = database.contactDao()
+
+        // Other initialization code
     }
-}
 
-fun renderContacts(contactsToRender: List<Contact>) {
-    val contactList = findViewById<LinearLayout>(R.id.contact_list)
-    contactList.removeAllViews()
-    contactsToRender.forEachIndexed { index, contact ->
-        val contactItem = layoutInflater.inflate(R.layout.contact_item, null)
-        val contactDetails = contactItem.findViewById<TextView>(R.id.contact_details)
-        contactDetails.text = "${contact.name} - ${contact.telephone} - ${contact.group}"
-        val deleteButton = contactItem.findViewById<Button>(R.id.delete_button)
-        deleteButton.setOnClickListener { deleteContact(index) }
-        val editButton = contactItem.findViewById<Button>(R.id.edit_button)
-        editButton.setOnClickListener { showEditModal(index) }
-        contactList.addView(contactItem)
-    }
-}
+    fun addContact() {
+        val name = findViewById<EditText>(R.id.name).text.toString()
+        val telephone = findViewById<EditText>(R.id.telephone).text.toString()
+        val group = findViewById<EditText>(R.id.group).text.toString()
 
-fun showEditModal(index: Int) {
-    val editModal = findViewById<ConstraintLayout>(R.id.edit_modal)
-    editModal.visibility = View.VISIBLE
-
-    val contact = contacts[index]
-    val editName = findViewById<EditText>(R.id.edit_name)
-    val editTelephone = findViewById<EditText>(R.id.edit_telephone)
-    val editGroup = findViewById<EditText>(R.id.edit_group)
-    editName.setText(contact.name)
-    editTelephone.setText(contact.telephone)
-    editGroup.setText(contact.group)
-
-    val saveButton = findViewById<Button>(R.id.save_button)
-    saveButton.setOnClickListener {
-        val newName = editName.text.toString()
-        val newTelephone = editTelephone.text.toString()
-        val newGroup = editGroup.text.toString()
-        if (newName.isNotEmpty() && newTelephone.isNotEmpty() && newGroup.isNotEmpty()) {
-            contacts[index] = Contact(newName, newTelephone, newGroup)
-            renderContacts(contacts)
-            editModal.visibility = View.GONE
+        if (name.isNotEmpty() && telephone.isNotEmpty() && group.isNotEmpty()) {
+            val contact = Contact(name = name, telephone = telephone, group = group)
+            lifecycleScope.launch(Dispatchers.IO) {
+                contactDao.addContact(contact)
+            }
+            Toast.makeText(this, "Contact added successfully", Toast.LENGTH_SHORT).show()
+            renderContacts()
+            clearForm()
         } else {
             Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
         }
     }
-}
 
-fun deleteContact(index: Int) {
-    contacts.removeAt(index)
-    renderContacts(contacts)
-}
+    fun deleteContact(contact: Contact) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            contactDao.deleteContact(contact)
+        }
+        Toast.makeText(this, "Contact deleted successfully", Toast.LENGTH_SHORT).show()
+        renderContacts()
+    }
 
-fun clearForm() {
-    findViewById<EditText>(R.id.name).text.clear()
-    findViewById<EditText>(R.id.telephone).text.clear()
-    findViewById<EditText>(R.id.group).text.clear()
-}
+    fun searchByName(name: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val contacts = contactDao.getContactsByName(name)
+            renderContacts(contacts)
+        }
+    }
 
-fun searchContact() {
-    val searchName = findViewById<EditText>(R.id.search_name).text.toString().toLowerCase(Locale.getDefault())
-    val filteredContacts = contacts.filter { it.name.toLowerCase(Locale.getDefault()).contains(searchName) }
-    renderContacts(filteredContacts)
-}
+    fun searchByGroup(group: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val contacts = contactDao.getContactsByGroup(group)
+            renderContacts(contacts)
+        }
+    }
 
-fun searchGroup() {
-    val searchGroup = findViewById<EditText>(R.id.search_group).text.toString().toLowerCase(Locale.getDefault())
-    val filteredContacts = contacts.filter { it.group.toLowerCase(Locale.getDefault()).contains(searchGroup) }
-    renderContacts(filteredContacts)
-}
+    fun updateContact(contact: Contact) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            contactDao.updateContact(contact)
+        }
+        Toast.makeText(this, "Contact updated successfully", Toast.LENGTH_SHORT).show()
+        renderContacts()
+    }
 
-fun showAllContacts() {
-    renderContacts(contacts)
-}
+    private fun renderContacts(contacts: List<Contact> = emptyList()) {
+        
+    }
 
+    private fun clearForm() {
+        findViewById<EditText>(R.id.name).text.clear()
+        findViewById<EditText>(R.id.telephone).text.clear()
+        findViewById<EditText>(R.id.group).text.clear()
+    }
+}
